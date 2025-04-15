@@ -356,6 +356,7 @@ void LIVMapper::handleLIO()
   if (!lidar_map_inited) 
   {
     lidar_map_inited = true;
+    // 初始化体素地图
     voxelmap_manager->BuildVoxelMap();
   }
 

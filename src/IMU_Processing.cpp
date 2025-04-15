@@ -235,9 +235,10 @@ void ImuProcess::Forward_without_imu(LidarMeasureGroup &meas, StatesGroup &state
   }
 }
 
-
+// 结合IMU和LIDAR数据，通过前向和反向传播进行点云去畸变
 void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_inout, PointCloudXYZI &pcl_out)
 {
+  // 1.初始化
   double t0 = omp_get_wtime();
   pcl_out.clear();
   /*** add the imu of the last frame-tail to the of current frame-head ***/
