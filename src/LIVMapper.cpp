@@ -935,6 +935,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
     case VIO:
     {
       // printf("!!! meas.lio_vio_flg: %d \n", meas.lio_vio_flg);
+      // 计算图像的捕获时间：
       double img_capture_time = img_time_buffer.front() + exposure_time_init;
       /*** has img topic, but img topic timestamp larger than lidar end time,
        * process lidar topic. After LIO update, the meas.lidar_frame_end_time
@@ -946,7 +947,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
 
       double lid_newest_time = lid_header_time_buffer.back() + lid_raw_data_buffer.back()->points.back().curvature / double(1000);
       double imu_newest_time = imu_buffer.back()->header.stamp.toSec();
-
+      // 检查图像时间戳是否有效：
       if (img_capture_time < meas.last_lio_update_time + 0.00001)
       {
         img_buffer.pop_front();
@@ -954,7 +955,8 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
         ROS_ERROR("[ Data Cut ] Throw one image frame! \n");
         return false;
       }
-
+      // 检查图像是否超时（是否超过最新的 LiDAR 或 IMU 数据时间）：
+      // 如果图像时间戳大于最新的 LiDAR 或 IMU 时间戳，则丢弃图像数据：
       if (img_capture_time > lid_newest_time || img_capture_time > imu_newest_time)
       {
         // ROS_ERROR("lost first camera frame");
@@ -969,6 +971,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
       // printf("[ Data Cut ] img_capture_time: %lf \n", img_capture_time);
       m.imu.clear();
       m.lio_time = img_capture_time;
+      // 同步 IMU 数据：通过检查 IMU 数据的时间戳，获取所有时间戳小于当前图像捕获时间的数据
       mtx_buffer.lock();
       while (!imu_buffer.empty())
       {
@@ -991,7 +994,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
       meas.pcl_proc_cur->reserve(max_size);
       meas.pcl_proc_next->reserve(max_size);
       // deque<PointCloudXYZI::Ptr> lidar_buffer_tmp;
-
+      // 同步 LiDAR 数据：通过比较 LiDAR 数据的时间戳，将 LiDAR 点云数据分配到当前和下一个点云中
       while (!lid_raw_data_buffer.empty())
       {
         if (lid_header_time_buffer.front() > img_capture_time) break;
@@ -1016,9 +1019,9 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
         lid_raw_data_buffer.pop_front();
         lid_header_time_buffer.pop_front();
       }
-
+      // 数据更新：
       meas.measures.push_back(m);
-      meas.lio_vio_flg = LIO;
+      meas.lio_vio_flg = LIO;// 切换状态标志
       // meas.last_lio_update_time = m.lio_time;
       // printf("!!! meas.lio_vio_flg: %d \n", meas.lio_vio_flg);
       // printf("[ Data Cut ] pcl_proc_cur number: %d \n", meas.pcl_proc_cur

@@ -297,7 +297,8 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
   /*** Initialize IMU pose ***/
   // IMUpose.clear();
 
-  /*** forward propagation at each imu point ***/
+  /*** forward propagation at each imu point 
+   * 前向传播***/
   V3D acc_imu(acc_s_last), angvel_avr(angvel_last), acc_avr, vel_imu(state_inout.vel_end), pos_imu(state_inout.pos_end);
   // cout << "[ IMU ] input state: " << state_inout.vel_end.transpose() << " " << state_inout.pos_end.transpose() << endl;
   M3D R_imu(state_inout.rot_end);
@@ -377,6 +378,7 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
       dt_all += dt;
       // printf("[ LIO Propagation ] dt: %lf \n", dt);
 
+      /* 更新状态协方差 */
       /* covariance propagation */
       M3D acc_avr_skew;
       M3D Exp_f = Exp(angvel_avr, dt);
@@ -411,6 +413,7 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
 
       // tau = 1.0 / (0.25 * sin(2 * CV_PI * 0.5 * imu_time) + 0.75);
 
+      /* 更新 IMU 的姿态、速度和位置 */
       /* propogation of IMU attitude */
       R_imu = R_imu * Exp_f;
 
@@ -430,6 +433,7 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
       // cout<<setw(20)<<"offset_t: "<<offs_t<<"tail->header.stamp.toSec():
       // "<<tail->header.stamp.toSec()<<endl; printf("[ LIO Propagation ]
       // offs_t: %lf \n", offs_t);
+      /* 保存当前 IMU 状态 */
       IMUpose.push_back(set_pose6d(offs_t, acc_imu, angvel_avr, vel_imu, pos_imu, R_imu));
     }
 
@@ -494,6 +498,7 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
 
   /*** undistort each lidar point (backward propagation), ONLY working for LIO
    * update ***/
+  /* 反向传播 */
   if (lidar_meas.lio_vio_flg == LIO)
   {
     auto it_pcl = pcl_wait_proc.points.end() - 1;
@@ -519,6 +524,7 @@ void ImuProcess::UndistortPcl(LidarMeasureGroup &lidar_meas, StatesGroup &state_
         dt = it_pcl->curvature / double(1000) - head->offset_time;
 
         /* Transform to the 'end' frame */
+        /* 将点云转换到最后一帧坐标系下 */
         M3D R_i(R_imu * Exp(angvel_avr, dt));
         V3D T_ei(pos_imu + vel_imu * dt + 0.5 * acc_imu * dt * dt - state_inout.pos_end);
 

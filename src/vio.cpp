@@ -351,6 +351,7 @@ double VIOManager::calculateNCC(float *ref_patch, float *cur_patch, int patch_si
 
 void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &pg, const unordered_map<VOXEL_LOCATION, VoxelOctoTree *> &plane_map)
 {
+  // 检查稀疏地图是否为空。如果为空，直接返回。
   if (feat_map.size() <= 0) return;
   double ts0 = omp_get_wtime();
 
@@ -359,6 +360,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
   // downSizeFilter.filter(*pg_down);
 
   // resetRvizDisplay();
+  // 重置视觉子地图和子特征地图。
   visual_submap->reset();
 
   // Controls whether to include the visual submap from the previous frame.
@@ -367,7 +369,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
   float voxel_size = 0.5;
 
   if (!normal_en) warp_map.clear();
-
+  // 初始化深度图，用于存储每个像素的深度值。
   cv::Mat depth_img = cv::Mat::zeros(height, width, CV_32FC1);
   float *it = (float *)depth_img.data;
 
@@ -383,6 +385,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
 
   // printf("pg size: %zu \n", pg.size());
 
+  // 点云投影到图像平面
   for (int i = 0; i < pg.size(); i++)
   {
     // double t0 = omp_get_wtime();
@@ -405,7 +408,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
 
     // t_insert += omp_get_wtime()-t1;
     // double t2 = omp_get_wtime();
-
+    // 将点从世界坐标系转换到当前帧的相机坐标系。
     V3D pt_c(new_frame_->w2f(pt_w));
 
     if (pt_c[2] > 0)
@@ -413,8 +416,9 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
       V2D px;
       // px[0] = fx * pt_c[0]/pt_c[2] + cx;
       // px[1] = fy * pt_c[1]/pt_c[2]+ cy;
+      // 计算点在图像平面中的像素坐标。
       px = new_frame_->cam_->world2cam(pt_c);
-
+      // 更新深度图。
       if (new_frame_->cam_->isInFrame(px.cast<int>(), border))
       {
         // cv::circle(img_cp, cv::Point2f(px[0], px[1]), 3, cv::Scalar(0, 0, 255), -1, 8);
@@ -436,7 +440,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
 
   // double t1 = omp_get_wtime();
   vector<VOXEL_LOCATION> DeleteKeyList;
-
+  // 从稀疏地图中检索点
   for (auto &iter : sub_feat_map)
   {
     VOXEL_LOCATION position = iter.first;
@@ -484,6 +488,7 @@ void VIOManager::retrieveFromVisualSparseMap(cv::Mat img, vector<pointWithVar> &
   }
 
   // RayCasting Module
+  // 光线投射
   if (raycast_en)
   {
     for (int i = 0; i < length; i++)
