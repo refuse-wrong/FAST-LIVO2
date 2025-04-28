@@ -337,7 +337,9 @@ VoxelOctoTree *VoxelOctoTree::Insert(const pointWithVar &pv)
 
 void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
 {
+  // 清空残差矩阵、协方差列表
   cross_mat_list_.clear();
+  // 预留好存储空间，加速内存分配
   cross_mat_list_.reserve(feats_down_size_);
   body_cov_list_.clear();
   body_cov_list_.reserve(feats_down_size_);
@@ -346,6 +348,7 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
   // ekf_time = 0.0;
   // double t0 = omp_get_wtime();
 
+  // 把当前帧点云转到雷达外参系（imu坐标系），预处理
   for (size_t i = 0; i < feats_down_body_->size(); i++)
   {
     V3D point_this(feats_down_body_->points[i].x, feats_down_body_->points[i].y, feats_down_body_->points[i].z);
@@ -373,9 +376,11 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
   {
     double total_residual = 0.0;
     pcl::PointCloud<pcl::PointXYZI>::Ptr world_lidar(new pcl::PointCloud<pcl::PointXYZI>);
+    // 当前估计状态下，把body点云变换到世界系
     TransformLidar(state_.rot_end, state_.pos_end, feats_down_body_, world_lidar);
     M3D rot_var = state_.cov.block<3, 3>(0, 0);
     M3D t_var = state_.cov.block<3, 3>(3, 3);
+    // 计算每个点的协方差
     for (size_t i = 0; i < feats_down_body_->size(); i++)
     {
       pointWithVar &pv = pv_list_[i];
@@ -391,7 +396,7 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
     ptpl_list_.clear();
 
     // double t1 = omp_get_wtime();
-
+    // 寻找每个点最近的局部平面（建残差）
     BuildResidualListOMP(pv_list_, ptpl_list_);
 
     // build_residual_time += omp_get_wtime() - t1;
@@ -406,6 +411,7 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
 
     /*** Computation of Measuremnt Jacobian matrix H and measurents covarience
      * ***/
+    // 计算整体的Jacobian矩阵 + 测量方差矩阵
     MatrixXd Hsub(effct_feat_num_, 6);
     MatrixXd Hsub_T_R_inv(6, effct_feat_num_);
     VectorXd R_inv(effct_feat_num_);
@@ -459,6 +465,7 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
     EKF_stop_flg = false;
     flg_EKF_converged = false;
     /*** Iterative Kalman Filter Update ***/
+    // 执行一轮 Kalman Filter 更新（状态优化）
     MatrixXd K(DIM_STATE, effct_feat_num_);
     // auto &&Hsub_T = Hsub.transpose();
     auto &&HTz = Hsub_T_R_inv * meas_vec;
@@ -474,6 +481,7 @@ void VoxelMapManager::StateEstimation(StatesGroup &state_propagat)
     state_ += solution;
     auto rot_add = solution.block<3, 1>(0, 0);
     auto t_add = solution.block<3, 1>(3, 0);
+    // 判断收敛
     if ((rot_add.norm() * 57.3 < 0.01) && (t_add.norm() * 100 < 0.015)) { flg_EKF_converged = true; }
     V3D euler_cur = state_.rot_end.eulerAngles(2, 1, 0);
 

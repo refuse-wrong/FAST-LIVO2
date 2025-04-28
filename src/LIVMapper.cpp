@@ -284,9 +284,9 @@ void LIVMapper::handleVIO()
     std::cout << "[ VIO ] No point!!!" << std::endl;
     return;
   }
-    
+  // 打印当前点云数量
   std::cout << "[ VIO ] Raw feature num: " << pcl_w_wait_pub->points.size() << std::endl;
-
+  // 判断是否需要绘制
   if (fabs((LidarMeasures.last_lio_update_time - _first_lidar_time) - plot_time) < (frame_cnt / 2 * 0.1)) 
   {
     vio_manager->plot_flag = true;
@@ -295,9 +295,9 @@ void LIVMapper::handleVIO()
   {
     vio_manager->plot_flag = false;
   }
-
+  //处理视觉和激光雷达数据
   vio_manager->processFrame(LidarMeasures.measures.back().img, _pv_list, voxelmap_manager->voxel_map_, LidarMeasures.last_lio_update_time - _first_lidar_time);
-
+  // IMU状态更新
   if (imu_prop_enable) 
   {
     ekf_finish_once = true;
@@ -341,7 +341,7 @@ void LIVMapper::handleLIO()
   }
 
   double t0 = omp_get_wtime();
-
+  // 点云下采样（体素滤波）
   downSizeFilterSurf.setInputCloud(feats_undistort);
   downSizeFilterSurf.filter(*feats_down_body);
   
@@ -349,7 +349,7 @@ void LIVMapper::handleLIO()
 
   feats_down_size = feats_down_body->points.size();
   voxelmap_manager->feats_down_body_ = feats_down_body;
-  transformLidar(_state.rot_end, _state.pos_end, feats_down_body, feats_down_world);
+  transformLidar(_state.rot_end, _state.pos_end, feats_down_body, feats_down_world);// 点云从 body frame 转到 world frame
   voxelmap_manager->feats_down_world_ = feats_down_world;
   voxelmap_manager->feats_down_size_ = feats_down_size;
   
@@ -361,7 +361,7 @@ void LIVMapper::handleLIO()
   }
 
   double t1 = omp_get_wtime();
-
+  // 状态估计：scan-to-map 匹配优化
   voxelmap_manager->StateEstimation(state_propagat);
   _state = voxelmap_manager->state_;
   _pv_list = voxelmap_manager->pv_list_;
@@ -404,7 +404,7 @@ void LIVMapper::handleLIO()
   publish_odometry(pubOdomAftMapped);
 
   double t3 = omp_get_wtime();
-
+  // 更新 Voxel 地图（增加新点，更新协方差）
   PointCloudXYZI::Ptr world_lidar(new PointCloudXYZI());
   transformLidar(_state.rot_end, _state.pos_end, feats_down_body, world_lidar);
   for (size_t i = 0; i < world_lidar->points.size(); i++) 
@@ -421,7 +421,7 @@ void LIVMapper::handleLIO()
   _pv_list = voxelmap_manager->pv_list_;
   
   double t4 = omp_get_wtime();
-
+  // 滑动窗口地图更新（如果启用）
   if(voxelmap_manager->config_setting_.map_sliding_en)
   {
     voxelmap_manager->mapSliding();
@@ -1032,6 +1032,7 @@ bool LIVMapper::sync_packages(LidarMeasureGroup &meas)
 
     case LIO:
     {
+      // 图像捕获时间：
       double img_capture_time = img_time_buffer.front() + exposure_time_init;
       meas.lio_vio_flg = VIO;
       // printf("[ Data Cut ] VIO \n");

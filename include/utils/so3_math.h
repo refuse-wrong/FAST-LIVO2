@@ -3,7 +3,7 @@
 
 #include <Eigen/Core>
 #include <math.h>
-
+// 反对称矩阵
 #define SKEW_SYM_MATRX(v) 0.0, -v[2], v[1], v[2], 0.0, -v[0], -v[1], v[0], 0.0
 
 template <typename T> Eigen::Matrix<T, 3, 3> Exp(const Eigen::Matrix<T, 3, 1> &&ang)
@@ -28,14 +28,15 @@ template <typename T, typename Ts> Eigen::Matrix<T, 3, 3> Exp(const Eigen::Matri
 
   if (ang_vel_norm > 0.0000001)
   {
-    Eigen::Matrix<T, 3, 1> r_axis = ang_vel / ang_vel_norm;
+    Eigen::Matrix<T, 3, 1> r_axis = ang_vel / ang_vel_norm; // 计算旋转轴
     Eigen::Matrix<T, 3, 3> K;
 
-    K << SKEW_SYM_MATRX(r_axis);
+    K << SKEW_SYM_MATRX(r_axis); // 计算反对称矩阵 即旋转的方向
 
-    T r_ang = ang_vel_norm * dt;
+    T r_ang = ang_vel_norm * dt; // 计算旋转角度
 
     /// Roderigous Tranformation
+    // 罗德里格斯旋转公式
     return Eye3 + std::sin(r_ang) * K + (1.0 - std::cos(r_ang)) * K * K;
   }
   else { return Eye3; }
